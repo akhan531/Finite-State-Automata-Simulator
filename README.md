@@ -1,4 +1,4 @@
-# Finite State Automata Simulator
+# Finite State Automata Simulator(https://finite-state-automata-simulator.vercel.app/)
 
 A web application that lets you design and test Finite State Automata with an interactive visual interface.
 
@@ -22,24 +22,6 @@ This simulator allows users to:
 - **Tailwind CSS** - For styling and responsive design
 - **vis.js** - For interactive graph visualization
 - **shadcn/ui** - For modern UI components
-
-## How to Run This Project
-
-1. **Download the code:**
-   ```bash
-   git clone https://github.com/akhan531/Finite-State-Automata-Simulator.git
-   cd Finite-State-Automata-Simulator
-   
-2. **Install dependencies:**
-   ```bash
-   npm install
-
-3. **Start the development server:**
-   ```bash
-   npm run dev
-
-4. **Open your browser** and go to `http://localhost:3000`
-
 
 ## How to Use the Simulator
 
