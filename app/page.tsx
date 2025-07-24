@@ -481,9 +481,6 @@ export default function DFASimulator() {
                     • <strong>Visual Feedback:</strong> Watch states light up during string processing
                   </li>
                   <li>
-                    • <strong>Delete with Backspace:</strong> Select states/transitions and press Backspace
-                  </li>
-                  <li>
                     • <strong>Edit Alphabet:</strong> Click input symbols to rename or delete them
                   </li>
                 </ul>
