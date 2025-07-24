@@ -1,4 +1,4 @@
-# Finite State Automata Simulator(https://finite-state-automata-simulator.vercel.app/)
+# [Finite State Automata Simulator](https://finite-state-automata-simulator.vercel.app/)
 
 A web application that lets you design and test Finite State Automata with an interactive visual interface.
 
