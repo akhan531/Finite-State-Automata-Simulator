@@ -225,7 +225,9 @@ function updateNodeCounter() {
 // Function to update the node positions
 function updateNodePositions() {
   const spacing = 80 // Space between nodes
-  const allNodes = nodes.get()
+  const allNodes = nodes.get({
+    filter: (node) => node.id !== -1 
+  });
   const len = allNodes.length
   if (len < 2) return
   const saveNode = allNodes[len - 2]
@@ -473,7 +475,7 @@ network.on("click", async (event) => {
       nodes.remove(-1)
     }
     startId = stateId
-    const nodePosition = network.getPositions([startId])[startId] // Returns { "1": { x: 100, y: 150 } }
+    const nodePosition = network.getPositions([startId])[startId] 
     nodes.add({ id: -1, color: "transparent", x: nodePosition.x - 100, y: nodePosition.y })
     edges.add({
       from: -1,
@@ -484,7 +486,7 @@ network.on("click", async (event) => {
 
     isSettingStartState = false
 
-    // Hide the alert when user completes the action
+    
     if (window.hideInPageAlert) {
       window.hideInPageAlert()
     }
