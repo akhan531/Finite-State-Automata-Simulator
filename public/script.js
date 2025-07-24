@@ -175,8 +175,6 @@ let isRenamingState = false
 let isSettingStartState = false
 let isSwitchingAccepting = false
 let isRemovingLink = false
-let selectedNode = null
-let selectedEdge = null
 let linkDestNode = null // Declare the linkDestNode variable
 
 // Input alphabet management
@@ -191,8 +189,6 @@ function clearSelections() {
   isSettingStartState = false
   isSwitchingAccepting = false
   isRemovingLink = false
-  selectedNode = null
-  selectedEdge = null
   linkDestNode = null // Reset linkDestNode on clear
 }
 
@@ -586,55 +582,6 @@ network.on("click", async (event) => {
     // Hide the alert when user completes the action
     if (window.hideInPageAlert) {
       window.hideInPageAlert()
-    }
-  }
-})
-
-network.on("selectNode", (event) => {
-  selectedNode = event.nodes[0] // Store the selected node ID
-  selectedEdge = null
-})
-
-network.on("selectEdge", (event) => {
-  selectedEdge = event.edges[0]
-  selectedNode = null // Clear selection when node is deselected
-})
-
-network.on("deselectNode", () => {
-  selectedNode = null // Clear selection when node is deselected
-})
-
-network.on("deselectEdge", () => {
-  selectedEdge = null
-})
-
-document.addEventListener("keydown", (event) => {
-  if (event.key === "Backspace") {
-    event.preventDefault() // Prevent browser back navigation
-
-    // Delete selected node
-    if (selectedNode !== null) {
-      if (currentStateCount === 1) {
-        if (window.showInPageAlert) {
-          window.showInPageAlert("You must have at least one state.", "warning")
-        }
-        return
-      }
-      removeState(selectedNode)
-      nodes.remove(selectedNode)
-      updateNodeCounter()
-      selectedNode = null
-      network.unselectAll()
-    }
-    // Delete selected edge
-    else if (selectedEdge !== null) {
-      const edge = edges.get(selectedEdge)
-      if (edge && edge.label) {
-        removeLink(edge.from, edge.label) // Remove from DFA
-      }
-      edges.remove(selectedEdge) // Remove from visualization
-      selectedEdge = null
-      network.unselectAll()
     }
   }
 })
