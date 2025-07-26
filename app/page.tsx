@@ -41,6 +41,11 @@ export default function DFASimulator() {
     option2: "",
   })
   const [promptInput, setPromptInput] = useState("")
+  const [testResult, setTestResult] = useState<{
+    isOpen: boolean
+    accepted: boolean
+    testString: string
+  } | null>(null)
 
   // Function to show in-page alert
   const showInPageAlert = (message: string, type: "info" | "warning" | "success" = "info") => {
@@ -85,6 +90,17 @@ export default function DFASimulator() {
         resolve,
       })
     })
+  }
+
+  // Function to show test result popup
+  const showTestResult = (accepted: boolean, testString: string) => {
+    setTestResult({
+      isOpen: true,
+      accepted,
+      testString,
+    })
+    // Auto-hide after 4 seconds
+    setTimeout(() => setTestResult(null), 4000)
   }
 
   // Handle prompt OK
@@ -149,11 +165,12 @@ export default function DFASimulator() {
     // Prevent multiple script loads
     if (scriptLoadedRef.current) return
 
-    // Expose the alert, prompt, and choice functions globally so the script can use them
+    // Expose the alert, prompt, choice, and test result functions globally so the script can use them
     window.showInPageAlert = showInPageAlert
     window.hideInPageAlert = hideInPageAlert
     window.showCustomPrompt = showCustomPrompt
     window.showCustomChoice = showCustomChoice
+    window.showTestResult = showTestResult
 
     const loadScript = (src: string) => {
       return new Promise<void>((resolve, reject) => {
@@ -548,6 +565,65 @@ export default function DFASimulator() {
               </div>
             </CardContent>
           </Card>
+        </div>
+      )}
+
+      {/* Test Result Modal */}
+      {testResult && (
+        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
+          <div
+            className={`w-full max-w-md mx-4 shadow-2xl rounded-lg overflow-hidden ${
+              testResult.accepted
+                ? "bg-gradient-to-br from-green-50 to-emerald-100 border-2 border-green-200"
+                : "bg-gradient-to-br from-red-50 to-rose-100 border-2 border-red-200"
+            }`}
+          >
+            <div className="p-6 text-center">
+              <div
+                className={`w-16 h-16 mx-auto mb-4 rounded-full flex items-center justify-center ${
+                  testResult.accepted ? "bg-green-500 text-white" : "bg-red-500 text-white"
+                }`}
+              >
+                {testResult.accepted ? (
+                  <svg className="w-8 h-8" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={3} d="M5 13l4 4L19 7" />
+                  </svg>
+                ) : (
+                  <svg className="w-8 h-8" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={3} d="M6 18L18 6M6 6l12 12" />
+                  </svg>
+                )}
+              </div>
+
+              <h3 className={`text-2xl font-bold mb-2 ${testResult.accepted ? "text-green-800" : "text-red-800"}`}>
+                String {testResult.accepted ? "Accepted" : "Rejected"}
+              </h3>
+
+              <div className="mb-4">
+                <p className="text-gray-700 mb-2">Test String:</p>
+                <div className="bg-white/70 rounded-lg px-4 py-2 font-mono text-lg border">
+                  {testResult.testString || "(empty string)"}
+                </div>
+              </div>
+
+              <p className={`text-sm ${testResult.accepted ? "text-green-700" : "text-red-700"}`}>
+                {testResult.accepted
+                  ? "The string was successfully accepted by the automaton."
+                  : "The string was rejected by the automaton."}
+              </p>
+
+              <button
+                onClick={() => setTestResult(null)}
+                className={`mt-4 px-6 py-2 rounded-lg font-medium transition-colors ${
+                  testResult.accepted
+                    ? "bg-green-600 hover:bg-green-700 text-white"
+                    : "bg-red-600 hover:bg-red-700 text-white"
+                }`}
+              >
+                Close
+              </button>
+            </div>
+          </div>
         </div>
       )}
     </div>

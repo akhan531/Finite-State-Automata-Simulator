@@ -30,10 +30,12 @@ function addLink(state1Id, state2Id, inputVal) {
 
 function removeLink(stateId, inputs) {
   const state = findState(stateId)
-  if (inputs && inputs in state.outs) {
+  if (inputs) {
     const arr = inputs.split(",")
     for (const inputVal of arr) {
-      delete state.outs[inputVal]
+      if (inputVal in state.outs) {
+        delete state.outs[inputVal]
+      }
     }
   }
 }
@@ -210,7 +212,12 @@ async function animateNodes(testString) {
   }
   nodes.update({ id: path[path.length - 1].id, color: finalColor })
   await sleep(0.1)
-  alert("Result: " + accepted)
+
+  // Use custom popup instead of browser alert
+  if (window.showTestResult) {
+    window.showTestResult(accepted, testString)
+  }
+
   nodes.update({ id: path[path.length - 1].id, color: "#f0f0f0" })
 }
 
@@ -226,8 +233,8 @@ function updateNodeCounter() {
 function updateNodePositions() {
   const spacing = 80 // Space between nodes
   const allNodes = nodes.get({
-    filter: (node) => node.id !== -1 
-  });
+    filter: (node) => node.id !== -1,
+  })
   const len = allNodes.length
   if (len < 2) return
   const saveNode = allNodes[len - 2]
@@ -264,15 +271,15 @@ async function handleInputClick(input) {
       updateInputList()
       for (const edge of edges.get()) {
         if (edge.label) {
-          const arr = edge.label.split(",")
+          let arr = edge.label.split(",")
           if (arr.includes(input)) {
             for (let i = 0; i < arr.length; i++) {
               if (arr[i] == input) {
                 arr[i] = newName
-                break
               }
             }
           }
+          arr = [...new Set(arr)]
           edges.update({ id: edge.id, label: arr.join() })
         }
       }
@@ -292,6 +299,7 @@ async function handleInputClick(input) {
             edges.remove(edge.id)
           } else {
             arr = arr.filter((item) => item !== input)
+            arr = [...new Set(arr)]
             edges.update({ id: edge.id, label: arr.join() })
           }
         }
@@ -406,7 +414,7 @@ document.getElementById("test").addEventListener("click", async () => {
   } else {
     if (!window.showCustomPrompt) return
 
-    const testString = await window.showCustomPrompt("Test DFA", "Enter a string to test:")
+    const testString = await window.showCustomPrompt("Test String", "Enter a string to test:")
     if (testString !== null) {
       animateNodes(testString)
     }
@@ -442,14 +450,16 @@ network.on("click", async (event) => {
 
   if (isRemovingState && clickedNodes.length > 0) {
     const stateId = clickedNodes[0]
-    removeState(stateId)
-    nodes.remove(stateId)
-    updateNodeCounter()
-    isRemovingState = false
+    if (stateId !== -1) {
+      removeState(stateId)
+      nodes.remove(stateId)
+      updateNodeCounter()
+      isRemovingState = false
 
-    // Hide the alert when user completes the action
-    if (window.hideInPageAlert) {
-      window.hideInPageAlert()
+      // Hide the alert when user completes the action
+      if (window.hideInPageAlert) {
+        window.hideInPageAlert()
+      }
     }
   }
 
@@ -475,7 +485,7 @@ network.on("click", async (event) => {
       nodes.remove(-1)
     }
     startId = stateId
-    const nodePosition = network.getPositions([startId])[startId] 
+    const nodePosition = network.getPositions([startId])[startId]
     nodes.add({ id: -1, color: "transparent", x: nodePosition.x - 100, y: nodePosition.y })
     edges.add({
       from: -1,
@@ -486,7 +496,6 @@ network.on("click", async (event) => {
 
     isSettingStartState = false
 
-    
     if (window.hideInPageAlert) {
       window.hideInPageAlert()
     }
