@@ -165,6 +165,11 @@ const options = {
 }
 
 const network = new vis.Network(container, data, options)
+
+// Make nodes and network available globally for the React component
+window.nodes = nodes
+window.network = network
+
 //#endregion
 
 //#region Functions
@@ -199,17 +204,33 @@ function sleep(seconds) {
 }
 
 async function animateNodes(testString) {
-  const path = test(testString)
+  const path = test(testString) // This is line 203 - the path variable
+
+  // Store the sequence data globally for the View Sequence functionality
+  const accepted = path[path.length - 1].accepts && path.length - 1 === testString.length
+
+  // Store the test sequence data with node labels
+  const sequenceData = {
+    path: path.map((state) => ({
+      id: state.id,
+      label: nodes.get(state.id)?.label || state.id.toString(),
+      accepts: state.accepts,
+    })),
+    testString: testString,
+    accepted: accepted,
+  }
+
+  // Store globally so React component can access it
+  window.lastTestSequenceData = sequenceData
+
+  // Animate the nodes
   for (const node of path) {
     nodes.update({ id: node.id, color: "#f1ff75" })
     await sleep(0.1)
     nodes.update({ id: node.id, color: "#f0f0f0" })
   }
-  const accepted = path[path.length - 1].accepts && path.length - 1 === testString.length
-  let finalColor = "#f07f7f"
-  if (accepted) {
-    finalColor = "#b3ffab"
-  }
+
+  const finalColor = accepted ? "#b3ffab" : "#f07f7f"
   nodes.update({ id: path[path.length - 1].id, color: finalColor })
   await sleep(0.1)
 

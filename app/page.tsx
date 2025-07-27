@@ -10,7 +10,7 @@ import { Separator } from "@/components/ui/separator"
 import { Alert, AlertDescription } from "@/components/ui/alert"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
-import { Plus, Play, Trash2, Edit, Target, Link, Unlink, RotateCcw, Info, X } from "lucide-react"
+import { Plus, Play, Trash2, Edit, Target, Link, Unlink, RotateCcw, Info, X, Eye, ArrowRight } from "lucide-react"
 
 interface PromptState {
   isOpen: boolean
@@ -27,6 +27,12 @@ interface ChoiceState {
   option1: string
   option2: string
   resolve?: (choice: "1" | "2" | null) => void
+}
+
+interface StateSequenceData {
+  path: Array<{ id: number; label?: string; accepts: boolean }>
+  testString: string
+  accepted: boolean
 }
 
 const STRING_DISPLAY_LIMIT = 25
@@ -49,6 +55,10 @@ export default function DFASimulator() {
     testString: string
   } | null>(null)
   const [showFullString, setShowFullString] = useState(false)
+  const [sequenceView, setSequenceView] = useState<{
+    isOpen: boolean
+    data: StateSequenceData | null
+  }>({ isOpen: false, data: null })
 
   // Function to show in-page alert
   const showInPageAlert = (message: string, type: "info" | "warning" | "success" = "info") => {
@@ -111,6 +121,21 @@ export default function DFASimulator() {
     setShowFullString(false) // Reset string display mode
     // Auto-hide after 4 seconds
     setTimeout(() => setTestResult(null), 4000)
+  }
+
+  // Function to show sequence view - this is triggered by the "View Sequence" button
+  const showSequenceView = () => {
+    // Access the globally stored test sequence data
+    if (window.lastTestSequenceData) {
+      console.log("Showing sequence view with data:", window.lastTestSequenceData)
+      setSequenceView({
+        isOpen: true,
+        data: window.lastTestSequenceData,
+      })
+    } else {
+      console.log("No test sequence data available")
+      showInPageAlert("No test sequence data available. Please run a test first.", "warning")
+    }
   }
 
   // Handle prompt OK
@@ -644,22 +669,162 @@ export default function DFASimulator() {
                 </div>
               </div>
 
-              <p className={`text-sm ${testResult.accepted ? "text-green-700" : "text-red-700"}`}>
+              <p className={`text-sm mb-4 ${testResult.accepted ? "text-green-700" : "text-red-700"}`}>
                 {testResult.accepted
                   ? "The string was successfully accepted by the automaton."
                   : "The string was rejected by the automaton."}
               </p>
 
-              <button
-                onClick={() => setTestResult(null)}
-                className={`mt-4 px-6 py-2 rounded-lg font-medium transition-colors ${
-                  testResult.accepted
-                    ? "bg-green-600 hover:bg-green-700 text-white"
-                    : "bg-red-600 hover:bg-red-700 text-white"
-                }`}
-              >
-                Close
-              </button>
+              {/* Action buttons */}
+              <div className="flex gap-3 justify-center mb-4">
+                <button
+                  onClick={showSequenceView}
+                  className="px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg font-medium transition-colors flex items-center gap-2"
+                >
+                  <Eye className="h-4 w-4" />
+                  View Sequence
+                </button>
+                <button
+                  onClick={() => setTestResult(null)}
+                  className={`px-6 py-2 rounded-lg font-medium transition-colors ${
+                    testResult.accepted
+                      ? "bg-green-600 hover:bg-green-700 text-white"
+                      : "bg-red-600 hover:bg-red-700 text-white"
+                  }`}
+                >
+                  Close
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* State Sequence Visualization Modal */}
+      {sequenceView.isOpen && sequenceView.data && (
+        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
+          <div className="bg-white rounded-lg shadow-2xl max-w-4xl w-full max-h-[90vh] overflow-hidden">
+            <div className="p-6 border-b border-gray-200">
+              <div className="flex items-center justify-between">
+                <h2 className="text-2xl font-bold text-gray-900">State Transition Sequence</h2>
+                <button
+                  onClick={() => setSequenceView({ isOpen: false, data: null })}
+                  className="text-gray-400 hover:text-gray-600 transition-colors"
+                >
+                  <X className="h-6 w-6" />
+                </button>
+              </div>
+              <div className="mt-2 text-sm text-gray-600">
+                Test String:{" "}
+                <span className="font-mono bg-gray-100 px-2 py-1 rounded">
+                  {sequenceView.data.testString || "(empty)"}
+                </span>
+                <span
+                  className={`ml-4 px-2 py-1 rounded text-white text-xs ${sequenceView.data.accepted ? "bg-green-500" : "bg-red-500"}`}
+                >
+                  {sequenceView.data.accepted ? "ACCEPTED" : "REJECTED"}
+                </span>
+              </div>
+            </div>
+
+            <div className="p-6 overflow-y-auto max-h-[calc(90vh-120px)]">
+              <div className="space-y-6">
+                {/* Input character breakdown */}
+                <div>
+                  <h3 className="text-lg font-semibold mb-3 text-gray-800">Input Processing</h3>
+                  <div className="flex flex-wrap gap-2 mb-4">
+                    {sequenceView.data.testString.split("").map((char, index) => (
+                      <div key={index} className="bg-blue-100 text-blue-800 px-3 py-1 rounded-lg font-mono text-sm">
+                        <span className="text-xs text-blue-600">#{index + 1}</span> {char}
+                      </div>
+                    ))}
+                    {sequenceView.data.testString === "" && (
+                      <div className="bg-gray-100 text-gray-600 px-3 py-1 rounded-lg text-sm italic">
+                        Empty string (ε)
+                      </div>
+                    )}
+                  </div>
+                </div>
+
+                {/* State sequence visualization */}
+                <div>
+                  <h3 className="text-lg font-semibold mb-3 text-gray-800">State Transitions</h3>
+                  <div className="space-y-4">
+                    {sequenceView.data.path.map((state, index) => (
+                      <div key={index} className="flex items-center">
+                        {/* State circle */}
+                        <div
+                          className={`relative flex items-center justify-center w-16 h-16 rounded-full border-2 font-semibold text-sm ${
+                            index === 0
+                              ? "bg-blue-100 border-blue-500 text-blue-800" // Start state
+                              : index === sequenceView.data!.path.length - 1
+                                ? sequenceView.data!.accepted
+                                  ? "bg-green-100 border-green-500 text-green-800" // Final accepting
+                                  : "bg-red-100 border-red-500 text-red-800" // Final rejecting
+                                : "bg-gray-100 border-gray-400 text-gray-700" // Intermediate
+                          }`}
+                        >
+                          {state.label || state.id}
+                          {state.accepts && (
+                            <div className="absolute -top-1 -right-1 w-4 h-4 bg-green-500 rounded-full flex items-center justify-center">
+                              <svg className="w-2 h-2 text-white" fill="currentColor" viewBox="0 0 20 20">
+                                <path
+                                  fillRule="evenodd"
+                                  d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z"
+                                  clipRule="evenodd"
+                                />
+                              </svg>
+                            </div>
+                          )}
+                        </div>
+
+                        {/* Step information */}
+                        <div className="ml-4 flex-1">
+                          <div className="flex items-center gap-2">
+                            <span className="text-sm font-medium text-gray-700">
+                              {index === 0 ? "Start State" : `Step ${index}`}
+                            </span>
+                            {index > 0 && (
+                              <span className="text-xs bg-gray-200 text-gray-600 px-2 py-1 rounded">
+                                Input: {sequenceView.data!.testString[index - 1] || "ε"}
+                              </span>
+                            )}
+                          </div>
+                          <div className="text-sm text-gray-600">
+                            State: {state.label || state.id}
+                            {state.accepts && <span className="ml-2 text-green-600 font-medium">(Accepting)</span>}
+                          </div>
+                        </div>
+
+                        {/* Arrow to next state */}
+                        {index < sequenceView.data!.path.length - 1 && (
+                          <div className="ml-4">
+                            <ArrowRight className="h-5 w-5 text-gray-400" />
+                          </div>
+                        )}
+                      </div>
+                    ))}
+                  </div>
+                </div>
+
+                {/* Result summary */}
+                <div
+                  className={`p-4 rounded-lg border-l-4 ${
+                    sequenceView.data.accepted ? "bg-green-50 border-l-green-500" : "bg-red-50 border-l-red-500"
+                  }`}
+                >
+                  <h4 className={`font-semibold ${sequenceView.data.accepted ? "text-green-800" : "text-red-800"}`}>
+                    Result: {sequenceView.data.accepted ? "String Accepted" : "String Rejected"}
+                  </h4>
+                  <p className={`text-sm mt-1 ${sequenceView.data.accepted ? "text-green-700" : "text-red-700"}`}>
+                    {sequenceView.data.accepted
+                      ? `The string was fully processed and ended in an accepting state (${sequenceView.data.path[sequenceView.data.path.length - 1].label || sequenceView.data.path[sequenceView.data.path.length - 1].id}).`
+                      : sequenceView.data.path.length - 1 === sequenceView.data.testString.length
+                        ? `The string was fully processed but ended in a non-accepting state (${sequenceView.data.path[sequenceView.data.path.length - 1].label || sequenceView.data.path[sequenceView.data.path.length - 1].id}).`
+                        : `The string processing stopped early at step ${sequenceView.data.path.length - 1} due to no valid transition.`}
+                  </p>
+                </div>
+              </div>
             </div>
           </div>
         </div>
