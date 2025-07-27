@@ -299,8 +299,8 @@ export default function DFASimulator() {
       <div className="max-w-full mx-auto space-y-4 px-2">
         {/* Header */}
         <div className="text-center space-y-1">
-          <h1 className="text-3xl font-bold text-gray-900 tracking-tight">FSA Simulator</h1>
-          <p className="text-base text-gray-600">Design, visualize, and test Finite State Automata</p>
+          <h1 className="text-3xl font-bold text-gray-900 tracking-tight">DFA Simulator</h1>
+          <p className="text-base text-gray-600">Design, visualize, and test Deterministic Finite Automata</p>
         </div>
 
         <Separator className="my-4" />

@@ -205,7 +205,7 @@ function sleep(seconds) {
 
 async function animateNodes(testString) {
   const path = test(testString) // This is line 203 - the path variable
-
+  const timing = 0.5
   // Store the sequence data globally for the View Sequence functionality
   const accepted = path[path.length - 1].accepts && path.length - 1 === testString.length
 
@@ -226,13 +226,13 @@ async function animateNodes(testString) {
   // Animate the nodes
   for (const node of path) {
     nodes.update({ id: node.id, color: "#f1ff75" })
-    await sleep(0.1)
+    await sleep(timing)
     nodes.update({ id: node.id, color: "#f0f0f0" })
   }
 
   const finalColor = accepted ? "#b3ffab" : "#f07f7f"
   nodes.update({ id: path[path.length - 1].id, color: finalColor })
-  await sleep(0.1)
+  await sleep(timing)
 
   // Use custom popup instead of browser alert
   if (window.showTestResult) {

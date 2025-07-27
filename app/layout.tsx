@@ -6,8 +6,8 @@ import "./globals.css"
 const inter = Inter({ subsets: ["latin"] })
 
 export const metadata: Metadata = {
-  title: "FSA Simulator - Interactive Finite State Automata",
-  description: "Design, visualize, and test Finite State Automata with an intuitive interface",
+  title: "DFA Simulator - Interactive Deterministic Finite Automata",
+  description: "Design, visualize, and test Deterministic Finite Automata with an intuitive interface",
     generator: 'v0.dev'
 }
 
