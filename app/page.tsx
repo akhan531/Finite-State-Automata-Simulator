@@ -29,6 +29,8 @@ interface ChoiceState {
   resolve?: (choice: "1" | "2" | null) => void
 }
 
+const STRING_DISPLAY_LIMIT = 25
+
 export default function DFASimulator() {
   const scriptLoadedRef = useRef(false)
   const [alert, setAlert] = useState<{ message: string; type: "info" | "warning" | "success" } | null>(null)
@@ -46,6 +48,7 @@ export default function DFASimulator() {
     accepted: boolean
     testString: string
   } | null>(null)
+  const [showFullString, setShowFullString] = useState(false)
 
   // Function to show in-page alert
   const showInPageAlert = (message: string, type: "info" | "warning" | "success" = "info") => {
@@ -92,6 +95,12 @@ export default function DFASimulator() {
     })
   }
 
+  // Helper function to truncate long strings
+  const truncateString = (str: string, limit: number) => {
+    if (str.length <= limit) return str
+    return str.substring(0, limit) + "..."
+  }
+
   // Function to show test result popup
   const showTestResult = (accepted: boolean, testString: string) => {
     setTestResult({
@@ -99,6 +108,7 @@ export default function DFASimulator() {
       accepted,
       testString,
     })
+    setShowFullString(false) // Reset string display mode
     // Auto-hide after 4 seconds
     setTimeout(() => setTestResult(null), 4000)
   }
@@ -601,8 +611,36 @@ export default function DFASimulator() {
 
               <div className="mb-4">
                 <p className="text-gray-700 mb-2">Test String:</p>
-                <div className="bg-white/70 rounded-lg px-4 py-2 font-mono text-lg border">
-                  {testResult.testString || "(empty string)"}
+                <div className="bg-white/70 rounded-lg px-4 py-2 font-mono text-lg border relative group">
+                  {testResult.testString ? (
+                    <>
+                      <span className="break-all">
+                        {showFullString || testResult.testString.length <= STRING_DISPLAY_LIMIT
+                          ? testResult.testString
+                          : truncateString(testResult.testString, STRING_DISPLAY_LIMIT)}
+                      </span>
+
+                      {/* Tooltip for full string */}
+                      {testResult.testString.length > STRING_DISPLAY_LIMIT && !showFullString && (
+                        <div className="absolute bottom-full left-1/2 transform -translate-x-1/2 mb-2 px-3 py-2 bg-gray-800 text-white text-sm rounded-lg opacity-0 group-hover:opacity-100 transition-opacity duration-200 pointer-events-none z-10 max-w-xs break-all">
+                          {testResult.testString}
+                          <div className="absolute top-full left-1/2 transform -translate-x-1/2 w-0 h-0 border-l-4 border-r-4 border-t-4 border-transparent border-t-gray-800"></div>
+                        </div>
+                      )}
+
+                      {/* Click to expand/collapse for very long strings */}
+                      {testResult.testString.length > STRING_DISPLAY_LIMIT && (
+                        <button
+                          onClick={() => setShowFullString(!showFullString)}
+                          className="ml-2 text-blue-600 hover:text-blue-800 text-sm underline focus:outline-none"
+                        >
+                          {showFullString ? "Show less" : "Show more"}
+                        </button>
+                      )}
+                    </>
+                  ) : (
+                    "(empty string)"
+                  )}
                 </div>
               </div>
 
