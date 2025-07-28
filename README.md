@@ -14,7 +14,7 @@ This simulator provides a complete DFA development environment that allows users
 
 ## Demo
 
-https://github.com/akhan531/Finite-State-Automata-Simulator/blob/main/demos/modelDFA.mov
+https://github.com/akhan531/Finite-State-Automata-Simulator/blob/main/demos/modelDFA.png
 
 This DFA accepts only binary numbers that are multiples of 3. We will recreate this DFA using our simulator.
 
