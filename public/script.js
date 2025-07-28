@@ -27,7 +27,12 @@ function addLink(state1Id, state2Id, inputVal) {
   const state1 = findState(state1Id)
   const state2 = findState(state2Id)
   if (state1 && state2) {
-    state1.outs[inputVal] = state2
+    if (inputVal in state1.outs && state1.outs[inputVal] !== state2) {
+      return false
+    } else {
+      state1.outs[inputVal] = state2
+      return true
+    }
   }
 }
 
@@ -336,15 +341,37 @@ function updateNodePositions() {
 
   try {
     const saveNode = allNodes[len - 2]
+    const lastNode = allNodes[len - 1]
+
+    // Try to get position from network first
     const positions = network.getPositions([saveNode.id])
-    if (positions && positions[saveNode.id]) {
-      const x = positions[saveNode.id].x
-      const y = positions[saveNode.id].y
-      const lastNode = allNodes[len - 1]
-      nodes.update({ id: lastNode.id, x: x + spacing, y: y })
+    let x, y
+
+    if (
+      positions &&
+      positions[saveNode.id] &&
+      positions[saveNode.id].x !== undefined &&
+      positions[saveNode.id].y !== undefined
+    ) {
+      x = positions[saveNode.id].x
+      y = positions[saveNode.id].y
+    } else {
+      // Fallback to node data
+      const nodeData = nodes.get(saveNode.id)
+      if (nodeData && nodeData.x !== undefined && nodeData.y !== undefined) {
+        x = nodeData.x
+        y = nodeData.y
+      } else {
+        // Final fallback
+        x = container.offsetWidth / 2
+        y = container.offsetHeight / 2
+      }
     }
+
+    nodes.update({ id: lastNode.id, x: x + spacing, y: y })
   } catch (error) {
     console.error("Error updating node positions:", error)
+    // Don't update positions if there's an error
   }
 }
 
@@ -433,7 +460,7 @@ updateNodePositions()
 // Add State Button
 document.getElementById("add-state").addEventListener("click", async () => {
   clearSelections()
-  
+
   if (!window.showCustomPrompt) return
 
   try {
@@ -450,7 +477,6 @@ document.getElementById("add-state").addEventListener("click", async () => {
   } catch (error) {
     console.error("Error adding state:", error)
   }
-  
 })
 
 // Remove State Button
@@ -560,7 +586,6 @@ document.getElementById("test").addEventListener("click", async () => {
 
 // Add Input Button
 addInputButton.addEventListener("click", async () => {
-  
   if (!window.showCustomPrompt) return
 
   try {
@@ -577,8 +602,11 @@ addInputButton.addEventListener("click", async () => {
   } catch (error) {
     console.error("Error adding input:", error)
   }
-  
 })
+
+
+
+
 
 //#endregion
 
@@ -603,116 +631,182 @@ network.on("click", async (event) => {
 
     if (isRenamingState && clickedNodes.length > 0) {
       const stateId = clickedNodes[0]
-      if (!window.showCustomPrompt) return
+      if (stateId !== -1) {
+        if (!window.showCustomPrompt) return
 
-      const newName = await window.showCustomPrompt("Rename State", "Enter a new name for the state:")
-      if (newName) {
-        nodes.update({ id: stateId, label: newName })
-      }
-      isRenamingState = false
+        const newName = await window.showCustomPrompt("Rename State", "Enter a new name for the state:")
+        if (newName) {
+          nodes.update({ id: stateId, label: newName })
+        }
+        isRenamingState = false
 
-      if (window.hideInPageAlert) {
-        window.hideInPageAlert()
+        if (window.hideInPageAlert) {
+          window.hideInPageAlert()
+        }
       }
+      
     }
 
     if (isSettingStartState && clickedNodes.length > 0) {
       const stateId = clickedNodes[0]
-      if (startId !== null) {
-        edges.remove(network.getConnectedEdges(-1))
-        nodes.remove(-1)
-      }
-      startId = stateId
-      const nodePosition = network.getPositions([startId])[startId]
-      nodes.add({ id: -1, color: "transparent", x: nodePosition.x - 100, y: nodePosition.y })
-      edges.add({
-        from: -1,
-        to: startId,
-        arrows: "to",
-        smooth: { enabled: false },
-      })
+      if (stateId !== -1) {
+        if (startId !== null) {
+          edges.remove(network.getConnectedEdges(-1))
+          nodes.remove(-1)
+        }
+        startId = stateId
 
-      isSettingStartState = false
+        // Safely get node position with fallback
+        try {
+          const positions = network.getPositions([startId])
+          let nodePosition = { x: 0, y: 0 } // Default position
 
-      if (window.hideInPageAlert) {
-        window.hideInPageAlert()
+          if (positions && positions[startId]) {
+            nodePosition = positions[startId]
+          } else {
+            // Fallback: get position from nodes dataset
+            const nodeData = nodes.get(startId)
+            if (nodeData && nodeData.x !== undefined && nodeData.y !== undefined) {
+              nodePosition = { x: nodeData.x, y: nodeData.y }
+            } else {
+              // Final fallback: use container center
+              nodePosition = {
+                x: container.offsetWidth / 2 - 100,
+                y: container.offsetHeight / 2,
+              }
+            }
+          }
+
+          nodes.add({
+            id: -1,
+            color: "transparent",
+            x: nodePosition.x - 100,
+            y: nodePosition.y,
+          })
+          edges.add({
+            from: -1,
+            to: startId,
+            arrows: "to",
+            smooth: { enabled: false },
+          })
+        } catch (error) {
+          console.error("Error setting start state position:", error)
+          // Add start indicator without specific positioning
+          nodes.add({ id: -1, color: "transparent" })
+          edges.add({
+            from: -1,
+            to: startId,
+            arrows: "to",
+            smooth: { enabled: false },
+          })
+        }
+
+        isSettingStartState = false
+
+        if (window.hideInPageAlert) {
+          window.hideInPageAlert()
+        }
       }
     }
 
     if (isSwitchingAccepting && clickedNodes.length > 0) {
       const stateId = clickedNodes[0]
-      const state = findState(stateId)
-      if (state) {
-        state.accepts = !state.accepts
-        if (state.accepts) {
-          nodes.update({ id: stateId, borderWidth: 5 })
-        } else {
-          nodes.update({ id: stateId, borderWidth: 2 })
+      if (stateId !== -1) {
+        const state = findState(stateId)
+        if (state) {
+          state.accepts = !state.accepts
+          if (state.accepts) {
+            nodes.update({ id: stateId, borderWidth: 5 })
+          } else {
+            nodes.update({ id: stateId, borderWidth: 2 })
+          }
         }
-      }
-      isSwitchingAccepting = false
+        isSwitchingAccepting = false
 
-      if (window.hideInPageAlert) {
-        window.hideInPageAlert()
+        if (window.hideInPageAlert) {
+          window.hideInPageAlert()
+        }
       }
     }
 
     if (isAddingLink && clickedNodes.length > 0) {
       if (linkSourceNode === null) {
         linkSourceNode = clickedNodes[0]
-        if (window.showInPageAlert) {
-          window.showInPageAlert("Click on a state in the diagram as the destination node.", "info")
+        if (linkSourceNode !== -1) {
+          if (window.showInPageAlert) {
+            window.showInPageAlert("Click on a state in the diagram as the destination node.", "info")
+          }
         }
       } else {
         linkDestNode = clickedNodes[0]
-        if (!window.showCustomPrompt) return
+        if (linkDestNode !== -1) {
+          if (!window.showCustomPrompt) return
 
-        const inputVal = await window.showCustomPrompt(
-          "Add Transition",
-          "Enter the input value for the transition (1 character):",
-        )
+          try {
+            const inputVal = await window.showCustomPrompt(
+              "Add Transition",
+              "Enter the input value for the transition (1 character):",
+            )
 
-        if (inputVal) {
-          const addingNewInput = !inputs.has(inputVal) && inputs.size < 10
-          const isValidInput = inputVal !== " " && inputVal.length === 1
+            if (inputVal) {
+              const addingNewInput = !inputs.has(inputVal) && inputs.size < 10
+              const isValidInput = inputVal !== " " && inputVal.length === 1
 
-          if (addingNewInput && isValidInput) {
-            addInput(inputVal)
-            updateInputList()
-          }
+              if (addingNewInput && isValidInput) {
+                addInput(inputVal)
+                updateInputList()
+              }
 
-          if (inputs.has(inputVal) || (addingNewInput && isValidInput)) {
-            addLink(linkSourceNode, linkDestNode, inputVal)
-            let existingLinkId = null
-            for (const edge of edges.get()) {
-              if (edge.from === linkSourceNode && edge.to === linkDestNode) {
-                existingLinkId = edge.id
+              if (inputs.has(inputVal) || (addingNewInput && isValidInput)) {
+                const isDFA = addLink(linkSourceNode, linkDestNode, inputVal)
+                if (isDFA) {
+                  let existingLinkId = null
+                  for (const edge of edges.get()) {
+                    if (edge.from === linkSourceNode && edge.to === linkDestNode) {
+                      existingLinkId = edge.id
+                    }
+                  }
+                  if (existingLinkId === null) {
+                    edges.add({
+                      from: linkSourceNode,
+                      to: linkDestNode,
+                      label: inputVal,
+                    })
+                  } else {
+                    const edge = edges.get(existingLinkId)
+                    const prevLabel = edge.label || ""
+                    if (!prevLabel.includes(inputVal)) {
+                      edges.update({ id: existingLinkId, label: prevLabel + (prevLabel ? "," : "") + inputVal })
+                    }
+                  }
+                  if (window.hideInPageAlert) {
+                    window.hideInPageAlert()
+                  }
+                } else if (!isValidInput) {
+                  if (window.showInPageAlert) {
+                    window.showInPageAlert("Input value must be a single character.", "warning")
+                  }
+                } else {
+                  const sourceNodeLabel = nodes.get(linkSourceNode)?.label || linkSourceNode
+                  if (window.showInPageAlert) {
+                    window.showInPageAlert(
+                      sourceNodeLabel + " already has a transition for the input " + inputVal + ".",
+                      "warning",
+                    )
+                  }
+                }
               }
             }
-            if (existingLinkId === null) {
-              edges.add({
-                from: linkSourceNode,
-                to: linkDestNode,
-                label: inputVal,
-              })
-            } else {
-              const edge = edges.get(existingLinkId)
-              const prevLabel = edge.label
-              if (!prevLabel.includes(inputVal)) {
-                edges.update({ id: existingLinkId, label: prevLabel + "," + inputVal })
-              }
-            }
-            if (window.hideInPageAlert) {
-              window.hideInPageAlert()
-            }
-          } else if (!isValidInput) {
+          } catch (error) {
+            console.error("Error in add link handler:", error)
             if (window.showInPageAlert) {
-              window.showInPageAlert("Input value must be a single character.", "warning")
+              window.showInPageAlert("Error occurred while adding transition. Please try again.", "warning")
             }
           }
+
+          linkSourceNode = null
+          isAddingLink = false
         }
-        linkSourceNode = null
-        isAddingLink = false
       }
     }
 
