@@ -21,7 +21,7 @@ This simulator provides a complete DFA development environment that allows users
 *Creating the DFA.*
 
 ![Testing the DFA](https://github.com/akhan531/Finite-State-Automata-Simulator/blob/main/demos/testingDFA.gif?raw=true)  
-*Tested the DFA with `1010010100110110011012` (1353421<sub>10</sub>), which is not divisible by 3.*   
+*Tested the DFA with `101001010011011001101` (1353421<sub>10</sub>), which is not divisible by 3.*   
 
 ## Key Features
 
