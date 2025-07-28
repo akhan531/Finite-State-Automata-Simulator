@@ -433,28 +433,24 @@ updateNodePositions()
 // Add State Button
 document.getElementById("add-state").addEventListener("click", async () => {
   clearSelections()
-  if (currentStateCount >= 10) {
-    if (window.showInPageAlert) {
-      window.showInPageAlert("Maximum number of states (10) reached.", "warning")
-    }
-  } else {
-    if (!window.showCustomPrompt) return
+  
+  if (!window.showCustomPrompt) return
 
-    try {
-      const stateName = await window.showCustomPrompt("Add State", "Enter a name for the new state:")
+  try {
+    const stateName = await window.showCustomPrompt("Add State", "Enter a name for the new state:")
 
-      if (stateName) {
-        const newState = addState()
-        if (newState) {
-          nodes.add({ id: newState.id, label: stateName, color: "#f0f0f0" })
-          updateNodeCounter()
-          updateNodePositions()
-        }
+    if (stateName) {
+      const newState = addState()
+      if (newState) {
+        nodes.add({ id: newState.id, label: stateName, color: "#f0f0f0" })
+        updateNodeCounter()
+        updateNodePositions()
       }
-    } catch (error) {
-      console.error("Error adding state:", error)
     }
+  } catch (error) {
+    console.error("Error adding state:", error)
   }
+  
 })
 
 // Remove State Button
@@ -564,28 +560,24 @@ document.getElementById("test").addEventListener("click", async () => {
 
 // Add Input Button
 addInputButton.addEventListener("click", async () => {
-  if (inputs.size >= 10) {
-    if (window.showInPageAlert) {
-      window.showInPageAlert("Maximum number of inputs (10) reached.", "warning")
-    }
-  } else {
-    if (!window.showCustomPrompt) return
+  
+  if (!window.showCustomPrompt) return
 
-    try {
-      const inputVal = await window.showCustomPrompt("Add Input", "Enter a new input value (1 character):")
-      if (inputVal && inputVal !== " " && inputVal.length === 1) {
-        if (addInput(inputVal)) {
-          updateInputList()
-        }
-      } else if (inputVal !== null && inputVal.length !== 1) {
-        if (window.showInPageAlert) {
-          window.showInPageAlert("Input value must be a single character.", "warning")
-        }
+  try {
+    const inputVal = await window.showCustomPrompt("Add Input", "Enter a new input value (1 character):")
+    if (inputVal && inputVal !== " " && inputVal.length === 1) {
+      if (addInput(inputVal)) {
+        updateInputList()
       }
-    } catch (error) {
-      console.error("Error adding input:", error)
+    } else if (inputVal !== null && inputVal.length !== 1) {
+      if (window.showInPageAlert) {
+        window.showInPageAlert("Input value must be a single character.", "warning")
+      }
     }
+  } catch (error) {
+    console.error("Error adding input:", error)
   }
+  
 })
 
 //#endregion
