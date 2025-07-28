@@ -20,17 +20,20 @@ function findState(stateId) {
       return states[i]
     }
   }
+  return null
 }
 
 function addLink(state1Id, state2Id, inputVal) {
   const state1 = findState(state1Id)
   const state2 = findState(state2Id)
-  state1.outs[inputVal] = state2
+  if (state1 && state2) {
+    state1.outs[inputVal] = state2
+  }
 }
 
 function removeLink(stateId, inputs) {
   const state = findState(stateId)
-  if (inputs) {
+  if (inputs && state) {
     const arr = inputs.split(",")
     for (const inputVal of arr) {
       if (inputVal in state.outs) {
@@ -50,6 +53,8 @@ function addState() {
 
 function removeState(stateId) {
   const state = findState(stateId)
+  if (!state) return
+
   for (const s in { ...state.outs }) {
     removeLink(stateId, s)
   }
@@ -65,9 +70,10 @@ function addInput(inputVal) {
     if (window.showInPageAlert) {
       window.showInPageAlert("Input value must be a single character.", "warning")
     }
-    return
+    return false
   }
   inputs.add(inputVal)
+  return true
 }
 
 function deleteInput(inputVal) {
@@ -85,7 +91,7 @@ function renameInput(oldName, newName) {
     if (window.showInPageAlert) {
       window.showInPageAlert("Input value must be a single character.", "warning")
     }
-    return
+    return false
   }
   inputs.delete(oldName)
   inputs.add(newName)
@@ -97,19 +103,40 @@ function renameInput(oldName, newName) {
       addLink(state.id, end.id, newName)
     }
   }
+  return true
 }
 
 function test(testString) {
-  let curr = findState(startId)
+  // Ensure we have a valid start state
+  if (startId === null) {
+    return null
+  }
+
+  const startState = findState(startId)
+  if (!startState) {
+    return null
+  }
+
+  let curr = startState
   const path = [curr]
+
+  // Handle empty string case - just return the start state
+  if (!testString || testString.length === 0) {
+    return path
+  }
+
+  // Process each character in the string
   for (let i = 0; i < testString.length; i++) {
-    if (testString[i] in curr.outs) {
-      curr = curr.outs[testString[i]]
+    const inputChar = testString[i]
+    if (inputChar in curr.outs) {
+      curr = curr.outs[inputChar]
       path.push(curr)
     } else {
+      // No valid transition - string is rejected
       return path
     }
   }
+
   return path
 }
 
@@ -128,17 +155,16 @@ const options = {
     arrows: "to",
     font: { size: 14 },
     smooth: {
-      type: "dynamic", // Automatically adjust curvature based on the number of edges
-      roundness: 0.5, // Adjust the curvature
+      type: "dynamic",
+      roundness: 0.5,
     },
     color: {
-      color: "#000000", // Default color
+      color: "#000000",
       highlight: "#848484",
       hover: "#848484",
-      inherit: "none", // <-- Disables all color inheritance
+      inherit: "none",
     },
   },
-
   nodes: {
     shape: "circle",
     font: { size: 16 },
@@ -147,7 +173,6 @@ const options = {
       border: "#000000",
     },
   },
-
   interaction: {
     dragNodes: true,
     dragView: true,
@@ -155,12 +180,6 @@ const options = {
   },
   physics: {
     enabled: false,
-    /*
-        "barnesHut": {
-            "springConstant": 0,
-            "avoidOverlap": 0.0001
-        }
-        */
   },
 }
 
@@ -182,7 +201,7 @@ let isRenamingState = false
 let isSettingStartState = false
 let isSwitchingAccepting = false
 let isRemovingLink = false
-let linkDestNode = null // Declare the linkDestNode variable
+let linkDestNode = null
 
 // Input alphabet management
 const inputList = document.getElementById("input-list")
@@ -196,7 +215,7 @@ function clearSelections() {
   isSettingStartState = false
   isSwitchingAccepting = false
   isRemovingLink = false
-  linkDestNode = null // Reset linkDestNode on clear
+  linkDestNode = null
 }
 
 function sleep(seconds) {
@@ -204,42 +223,96 @@ function sleep(seconds) {
 }
 
 async function animateNodes(testString) {
-  const path = test(testString) // This is line 203 - the path variable
-  const timing = 0.5
-  // Store the sequence data globally for the View Sequence functionality
-  const accepted = path[path.length - 1].accepts && path.length - 1 === testString.length
+  try {
+    // Ensure testString is a string (handle null/undefined)
+    const inputString = testString || ""
 
-  // Store the test sequence data with node labels
-  const sequenceData = {
-    path: path.map((state) => ({
-      id: state.id,
-      label: nodes.get(state.id)?.label || state.id.toString(),
-      accepts: state.accepts,
-    })),
-    testString: testString,
-    accepted: accepted,
+    // Test the string and get the path
+    const path = test(inputString)
+
+    // Handle case where no start state is set or path is invalid
+    if (!path || path.length === 0) {
+      if (window.showInPageAlert) {
+        window.showInPageAlert("Error: No valid start state or invalid DFA configuration.", "warning")
+      }
+      return
+    }
+
+    const timing = 0.15
+
+    // Determine if string is accepted
+    let accepted = false
+    const finalState = path[path.length - 1]
+
+    if (inputString.length === 0) {
+      // Empty string: accepted if start state is accepting
+      accepted = finalState.accepts
+    } else {
+      // Non-empty string: accepted if we processed all characters and ended in accepting state
+      accepted = finalState.accepts && path.length - 1 === inputString.length
+    }
+
+    // Store the test sequence data with node labels
+    const sequenceData = {
+      path: path.map((state) => ({
+        id: state.id,
+        label: nodes.get(state.id)?.label || state.id.toString(),
+        accepts: state.accepts,
+      })),
+      testString: inputString,
+      accepted: accepted,
+    }
+
+    // Store globally so React component can access it
+    window.lastTestSequenceData = sequenceData
+
+    // Animation logic
+    if (inputString.length === 0) {
+      // Empty string animation - just highlight the start state
+      const startState = path[0]
+      nodes.update({ id: startState.id, color: "#f1ff75" })
+      await sleep(timing)
+
+      const finalColor = accepted ? "#b3ffab" : "#f07f7f"
+      nodes.update({ id: startState.id, color: finalColor })
+      await sleep(timing)
+
+      // Show test result
+      if (window.showTestResult) {
+        window.showTestResult(accepted, inputString)
+      }
+
+      // Reset color
+      nodes.update({ id: startState.id, color: "#f0f0f0" })
+    } else {
+      // Non-empty string animation - animate through all states in path
+      for (let i = 0; i < path.length; i++) {
+        const node = path[i]
+        nodes.update({ id: node.id, color: "#f1ff75" })
+        await sleep(timing)
+        nodes.update({ id: node.id, color: "#f0f0f0" })
+        await sleep(0.05)
+      }
+
+      // Highlight final state with result color
+      const finalColor = accepted ? "#b3ffab" : "#f07f7f"
+      nodes.update({ id: finalState.id, color: finalColor })
+      await sleep(timing)
+
+      // Show test result
+      if (window.showTestResult) {
+        window.showTestResult(accepted, inputString)
+      }
+
+      // Reset final state color
+      nodes.update({ id: finalState.id, color: "#f0f0f0" })
+    }
+  } catch (error) {
+    console.error("Error in animateNodes:", error)
+    if (window.showInPageAlert) {
+      window.showInPageAlert("Error occurred during string testing. Please check your DFA configuration.", "warning")
+    }
   }
-
-  // Store globally so React component can access it
-  window.lastTestSequenceData = sequenceData
-
-  // Animate the nodes
-  for (const node of path) {
-    nodes.update({ id: node.id, color: "#f1ff75" })
-    await sleep(timing)
-    nodes.update({ id: node.id, color: "#f0f0f0" })
-  }
-
-  const finalColor = accepted ? "#b3ffab" : "#f07f7f"
-  nodes.update({ id: path[path.length - 1].id, color: finalColor })
-  await sleep(timing)
-
-  // Use custom popup instead of browser alert
-  if (window.showTestResult) {
-    window.showTestResult(accepted, testString)
-  }
-
-  nodes.update({ id: path[path.length - 1].id, color: "#f0f0f0" })
 }
 
 // Node counter
@@ -247,85 +320,102 @@ const nodeCounter = document.getElementById("node-counter")
 
 // Function to update the node counter
 function updateNodeCounter() {
-  nodeCounter.textContent = `States: ${currentStateCount}`
+  if (nodeCounter) {
+    nodeCounter.textContent = `States: ${currentStateCount}`
+  }
 }
 
 // Function to update the node positions
 function updateNodePositions() {
-  const spacing = 80 // Space between nodes
+  const spacing = 80
   const allNodes = nodes.get({
     filter: (node) => node.id !== -1,
   })
   const len = allNodes.length
   if (len < 2) return
-  const saveNode = allNodes[len - 2]
-  const x = network.getPositions([saveNode.id])[saveNode.id].x
-  const y = network.getPositions([saveNode.id])[saveNode.id].y
-  const lastNode = allNodes[len - 1]
-  nodes.update({ id: lastNode.id, x: x + spacing, y: y })
+
+  try {
+    const saveNode = allNodes[len - 2]
+    const positions = network.getPositions([saveNode.id])
+    if (positions && positions[saveNode.id]) {
+      const x = positions[saveNode.id].x
+      const y = positions[saveNode.id].y
+      const lastNode = allNodes[len - 1]
+      nodes.update({ id: lastNode.id, x: x + spacing, y: y })
+    }
+  } catch (error) {
+    console.error("Error updating node positions:", error)
+  }
 }
 
 // Function to update the input alphabet list
 function updateInputList() {
-  inputList.innerHTML = Array.from(inputs)
-    .map(
-      (input) => `
+  if (inputList) {
+    inputList.innerHTML = Array.from(inputs)
+      .map(
+        (input) => `
             <div onclick="handleInputClick('${input}')">${input}</div>
         `,
-    )
-    .join("")
+      )
+      .join("")
+  }
 }
 
 // Function to handle input alphabet click (rename/delete) - made async
 async function handleInputClick(input) {
   if (!window.showCustomChoice) return
 
-  const action = await window.showCustomChoice("Input Action", `Choose action for "${input}":`, "Rename", "Delete")
+  try {
+    const action = await window.showCustomChoice("Input Action", `Choose action for "${input}":`, "Rename", "Delete")
 
-  if (action === "1") {
-    if (!window.showCustomPrompt) return
+    if (action === "1") {
+      if (!window.showCustomPrompt) return
 
-    const newName = await window.showCustomPrompt("Rename Input", `Enter new name for "${input}":`)
+      const newName = await window.showCustomPrompt("Rename Input", `Enter new name for "${input}":`)
 
-    if (newName && newName.length === 1) {
-      renameInput(input, newName)
+      if (newName && newName.length === 1) {
+        if (renameInput(input, newName)) {
+          updateInputList()
+          for (const edge of edges.get()) {
+            if (edge.label) {
+              let arr = edge.label.split(",")
+              if (arr.includes(input)) {
+                for (let i = 0; i < arr.length; i++) {
+                  if (arr[i] == input) {
+                    arr[i] = newName
+                  }
+                }
+              }
+              arr = [...new Set(arr)]
+              edges.update({ id: edge.id, label: arr.join() })
+            }
+          }
+        }
+      } else if (newName !== null && newName.length !== 1) {
+        if (window.showInPageAlert) {
+          window.showInPageAlert("Input value must be a single character.", "warning")
+        }
+      }
+    } else if (action === "2") {
+      deleteInput(input)
       updateInputList()
       for (const edge of edges.get()) {
         if (edge.label) {
           let arr = edge.label.split(",")
           if (arr.includes(input)) {
-            for (let i = 0; i < arr.length; i++) {
-              if (arr[i] == input) {
-                arr[i] = newName
-              }
+            if (arr.length === 1) {
+              edges.remove(edge.id)
+            } else {
+              arr = arr.filter((item) => item !== input)
+              arr = [...new Set(arr)]
+              edges.update({ id: edge.id, label: arr.join() })
             }
           }
-          arr = [...new Set(arr)]
-          edges.update({ id: edge.id, label: arr.join() })
-        }
-      }
-    } else if (newName !== null) {
-      if (window.showInPageAlert) {
-        window.showInPageAlert("Input value must be a single character.", "warning")
-      }
-    }
-  } else if (action === "2") {
-    deleteInput(input)
-    updateInputList()
-    for (const edge of edges.get()) {
-      if (edge.label) {
-        let arr = edge.label.split(",")
-        if (arr.includes(input)) {
-          if (arr.length === 1) {
-            edges.remove(edge.id)
-          } else {
-            arr = arr.filter((item) => item !== input)
-            arr = [...new Set(arr)]
-            edges.update({ id: edge.id, label: arr.join() })
-          }
         }
       }
     }
+  } catch (error) {
+    console.error("Error in handleInputClick:", error)
   }
 }
 
@@ -350,17 +440,19 @@ document.getElementById("add-state").addEventListener("click", async () => {
   } else {
     if (!window.showCustomPrompt) return
 
-    const stateName = await window.showCustomPrompt("Add State", "Enter a name for the new state:")
+    try {
+      const stateName = await window.showCustomPrompt("Add State", "Enter a name for the new state:")
 
-    if (stateName) {
-      const newState = addState()
-      if (newState) {
-        nodes.add({ id: newState.id, label: stateName, color: "#f0f0f0" })
-        updateNodeCounter()
-        if (edges.length === 0 || true) {
+      if (stateName) {
+        const newState = addState()
+        if (newState) {
+          nodes.add({ id: newState.id, label: stateName, color: "#f0f0f0" })
+          updateNodeCounter()
           updateNodePositions()
         }
       }
+    } catch (error) {
+      console.error("Error adding state:", error)
     }
   }
 })
@@ -425,19 +517,47 @@ document.getElementById("remove-link").addEventListener("click", () => {
   }
 })
 
-// Test Button
+// Test Button - Enhanced for better empty string handling
 document.getElementById("test").addEventListener("click", async () => {
   clearSelections()
+
+  // Check if start state is set
   if (startId === null) {
     if (window.showInPageAlert) {
       window.showInPageAlert("Set a starting state before testing.", "warning")
     }
-  } else {
-    if (!window.showCustomPrompt) return
+    return
+  }
 
-    const testString = await window.showCustomPrompt("Test String", "Enter a string to test:")
-    if (testString !== null) {
-      animateNodes(testString)
+  // Verify start state still exists
+  if (!findState(startId)) {
+    if (window.showInPageAlert) {
+      window.showInPageAlert("Start state no longer exists. Please set a new start state.", "warning")
+    }
+    startId = null
+    return
+  }
+
+  if (!window.showCustomPrompt) return
+
+  try {
+    const testString = await window.showCustomPrompt(
+      "Test String",
+      "Enter a string to test:\n(Leave empty to test the empty string ε)",
+    )
+
+    // Handle user cancellation
+    if (testString === null) {
+      return
+    }
+
+    // Convert to empty string if needed and animate
+    const actualTestString = testString === null ? "" : testString
+    await animateNodes(actualTestString)
+  } catch (error) {
+    console.error("Error in test button handler:", error)
+    if (window.showInPageAlert) {
+      window.showInPageAlert("Error occurred during testing. Please try again.", "warning")
     }
   }
 })
@@ -451,14 +571,19 @@ addInputButton.addEventListener("click", async () => {
   } else {
     if (!window.showCustomPrompt) return
 
-    const inputVal = await window.showCustomPrompt("Add Input", "Enter a new input value (1 character):")
-    if (inputVal && inputVal !== " " && inputVal.length === 1) {
-      addInput(inputVal)
-      updateInputList()
-    } else if (inputVal !== null) {
-      if (window.showInPageAlert) {
-        window.showInPageAlert("Input value must be a single character.", "warning")
+    try {
+      const inputVal = await window.showCustomPrompt("Add Input", "Enter a new input value (1 character):")
+      if (inputVal && inputVal !== " " && inputVal.length === 1) {
+        if (addInput(inputVal)) {
+          updateInputList()
+        }
+      } else if (inputVal !== null && inputVal.length !== 1) {
+        if (window.showInPageAlert) {
+          window.showInPageAlert("Input value must be a single character.", "warning")
+        }
       }
+    } catch (error) {
+      console.error("Error adding input:", error)
     }
   }
 })
@@ -467,153 +592,151 @@ addInputButton.addEventListener("click", async () => {
 
 // Network event listeners
 network.on("click", async (event) => {
-  const { nodes: clickedNodes, edges: clickedEdges } = event
+  try {
+    const { nodes: clickedNodes, edges: clickedEdges } = event
 
-  if (isRemovingState && clickedNodes.length > 0) {
-    const stateId = clickedNodes[0]
-    if (stateId !== -1) {
-      removeState(stateId)
-      nodes.remove(stateId)
-      updateNodeCounter()
-      isRemovingState = false
+    if (isRemovingState && clickedNodes.length > 0) {
+      const stateId = clickedNodes[0]
+      if (stateId !== -1) {
+        removeState(stateId)
+        nodes.remove(stateId)
+        updateNodeCounter()
+        isRemovingState = false
 
-      // Hide the alert when user completes the action
+        if (window.hideInPageAlert) {
+          window.hideInPageAlert()
+        }
+      }
+    }
+
+    if (isRenamingState && clickedNodes.length > 0) {
+      const stateId = clickedNodes[0]
+      if (!window.showCustomPrompt) return
+
+      const newName = await window.showCustomPrompt("Rename State", "Enter a new name for the state:")
+      if (newName) {
+        nodes.update({ id: stateId, label: newName })
+      }
+      isRenamingState = false
+
       if (window.hideInPageAlert) {
         window.hideInPageAlert()
       }
     }
-  }
 
-  if (isRenamingState && clickedNodes.length > 0) {
-    const stateId = clickedNodes[0]
-    if (!window.showCustomPrompt) return
-
-    const newName = await window.showCustomPrompt("Rename State", "Enter a new name for the state:")
-    if (newName) {
-      nodes.update({ id: stateId, label: newName })
-    }
-    isRenamingState = false
-
-    if (window.hideInPageAlert) {
-      window.hideInPageAlert()
-    }
-  }
-
-  if (isSettingStartState && clickedNodes.length > 0) {
-    const stateId = clickedNodes[0]
-    if (startId !== null) {
-      edges.remove(network.getConnectedEdges(-1))
-      nodes.remove(-1)
-    }
-    startId = stateId
-    const nodePosition = network.getPositions([startId])[startId]
-    nodes.add({ id: -1, color: "transparent", x: nodePosition.x - 100, y: nodePosition.y })
-    edges.add({
-      from: -1,
-      to: startId,
-      arrows: "to",
-      smooth: { enabled: false },
-    })
-
-    isSettingStartState = false
-
-    if (window.hideInPageAlert) {
-      window.hideInPageAlert()
-    }
-  }
-
-  if (isSwitchingAccepting && clickedNodes.length > 0) {
-    const stateId = clickedNodes[0]
-    const state = findState(stateId)
-    state.accepts = !state.accepts
-    if (state.accepts) {
-      nodes.update({ id: stateId, borderWidth: 5 })
-    } else {
-      nodes.update({ id: stateId, borderWidth: 2 })
-    }
-    isSwitchingAccepting = false
-
-    // Hide the alert when user completes the action
-    if (window.hideInPageAlert) {
-      window.hideInPageAlert()
-    }
-  }
-
-  if (isAddingLink && clickedNodes.length > 0) {
-    if (linkSourceNode === null) {
-      linkSourceNode = clickedNodes[0]
-      if (window.showInPageAlert) {
-        window.showInPageAlert("Click on a state in the diagram as the destination node.", "info")
+    if (isSettingStartState && clickedNodes.length > 0) {
+      const stateId = clickedNodes[0]
+      if (startId !== null) {
+        edges.remove(network.getConnectedEdges(-1))
+        nodes.remove(-1)
       }
-    } else {
-      linkDestNode = clickedNodes[0]
-      if (!window.showCustomPrompt) return
+      startId = stateId
+      const nodePosition = network.getPositions([startId])[startId]
+      nodes.add({ id: -1, color: "transparent", x: nodePosition.x - 100, y: nodePosition.y })
+      edges.add({
+        from: -1,
+        to: startId,
+        arrows: "to",
+        smooth: { enabled: false },
+      })
 
-      const inputVal = await window.showCustomPrompt(
-        "Add Transition",
-        "Enter the input value for the transition (1 character):",
-      )
+      isSettingStartState = false
 
-      if (inputVal) {
-        const addingNewInput = !inputs.has(inputVal) && inputs.size < 10
-        const isValidInput = inputVal !== " " && inputVal.length === 1
-        if (addingNewInput) {
-          if (isValidInput) {
+      if (window.hideInPageAlert) {
+        window.hideInPageAlert()
+      }
+    }
+
+    if (isSwitchingAccepting && clickedNodes.length > 0) {
+      const stateId = clickedNodes[0]
+      const state = findState(stateId)
+      if (state) {
+        state.accepts = !state.accepts
+        if (state.accepts) {
+          nodes.update({ id: stateId, borderWidth: 5 })
+        } else {
+          nodes.update({ id: stateId, borderWidth: 2 })
+        }
+      }
+      isSwitchingAccepting = false
+
+      if (window.hideInPageAlert) {
+        window.hideInPageAlert()
+      }
+    }
+
+    if (isAddingLink && clickedNodes.length > 0) {
+      if (linkSourceNode === null) {
+        linkSourceNode = clickedNodes[0]
+        if (window.showInPageAlert) {
+          window.showInPageAlert("Click on a state in the diagram as the destination node.", "info")
+        }
+      } else {
+        linkDestNode = clickedNodes[0]
+        if (!window.showCustomPrompt) return
+
+        const inputVal = await window.showCustomPrompt(
+          "Add Transition",
+          "Enter the input value for the transition (1 character):",
+        )
+
+        if (inputVal) {
+          const addingNewInput = !inputs.has(inputVal) && inputs.size < 10
+          const isValidInput = inputVal !== " " && inputVal.length === 1
+
+          if (addingNewInput && isValidInput) {
             addInput(inputVal)
             updateInputList()
-          } else {
+          }
+
+          if (inputs.has(inputVal) || (addingNewInput && isValidInput)) {
+            addLink(linkSourceNode, linkDestNode, inputVal)
+            let existingLinkId = null
+            for (const edge of edges.get()) {
+              if (edge.from === linkSourceNode && edge.to === linkDestNode) {
+                existingLinkId = edge.id
+              }
+            }
+            if (existingLinkId === null) {
+              edges.add({
+                from: linkSourceNode,
+                to: linkDestNode,
+                label: inputVal,
+              })
+            } else {
+              const edge = edges.get(existingLinkId)
+              const prevLabel = edge.label
+              if (!prevLabel.includes(inputVal)) {
+                edges.update({ id: existingLinkId, label: prevLabel + "," + inputVal })
+              }
+            }
+            if (window.hideInPageAlert) {
+              window.hideInPageAlert()
+            }
+          } else if (!isValidInput) {
             if (window.showInPageAlert) {
               window.showInPageAlert("Input value must be a single character.", "warning")
             }
           }
         }
-
-        if (inputs.has(inputVal) || (addingNewInput && isValidInput)) {
-          addLink(linkSourceNode, linkDestNode, inputVal)
-          let existingLinkId = null
-          for (const edge of edges.get()) {
-            if (edge.from === linkSourceNode && edge.to === linkDestNode) {
-              existingLinkId = edge.id
-            }
-          }
-          if (existingLinkId === null) {
-            edges.add({
-              from: linkSourceNode,
-              to: linkDestNode,
-              label: inputVal,
-            })
-          } else {
-            const edge = edges.get(existingLinkId)
-            const prevLabel = edge.label
-            if (!prevLabel.includes(inputVal)) {
-              edges.update({ id: existingLinkId, label: prevLabel + "," + inputVal })
-            }
-          }
-          if (window.hideInPageAlert) {
-            window.hideInPageAlert()
-          }
-        } else {
-          if (window.showInPageAlert) {
-            window.showInPageAlert("Invalid input value.", "warning")
-          }
-        }
+        linkSourceNode = null
+        isAddingLink = false
       }
-      linkSourceNode = null
-      isAddingLink = false
     }
-  }
 
-  if (isRemovingLink && clickedEdges.length > 0) {
-    const edge = edges.get(clickedEdges[0])
-    if (edge && edge.label) {
-      removeLink(edge.from, edge.label)
-      edges.remove(clickedEdges[0])
-    }
-    isRemovingLink = false
+    if (isRemovingLink && clickedEdges.length > 0) {
+      const edge = edges.get(clickedEdges[0])
+      if (edge && edge.label) {
+        removeLink(edge.from, edge.label)
+        edges.remove(clickedEdges[0])
+      }
+      isRemovingLink = false
 
-    // Hide the alert when user completes the action
-    if (window.hideInPageAlert) {
-      window.hideInPageAlert()
+      if (window.hideInPageAlert) {
+        window.hideInPageAlert()
+      }
     }
+  } catch (error) {
+    console.error("Error in network click handler:", error)
   }
 })

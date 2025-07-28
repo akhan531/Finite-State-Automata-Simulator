@@ -113,14 +113,15 @@ export default function DFASimulator() {
 
   // Function to show test result popup
   const showTestResult = (accepted: boolean, testString: string) => {
+    // Ensure testString is properly handled
+    const safeTestString = testString || ""
+
     setTestResult({
       isOpen: true,
       accepted,
-      testString,
+      testString: safeTestString,
     })
     setShowFullString(false) // Reset string display mode
-    // Auto-hide after 4 seconds
-    setTimeout(() => setTestResult(null), 4000)
   }
 
   // Function to show sequence view - this is triggered by the "View Sequence" button
@@ -141,7 +142,9 @@ export default function DFASimulator() {
   // Handle prompt OK
   const handlePromptOk = () => {
     if (prompt.resolve) {
-      prompt.resolve(promptInput.trim() || null)
+      // Return the actual input value, including empty string
+      const inputValue = promptInput === "" ? "" : promptInput.trim()
+      prompt.resolve(inputValue)
     }
     setPrompt({ isOpen: false, title: "", message: "" })
     setPromptInput("")
@@ -305,45 +308,46 @@ export default function DFASimulator() {
 
         <Separator className="my-4" />
 
-        {/* Main Content Grid */}
+        {/* Fixed Position Alert - doesn't affect layout */}
+        {alert && (
+          <div className="fixed top-4 left-1/2 transform -translate-x-1/2 z-40 w-full max-w-2xl px-4">
+            <Alert
+              className={`border-l-4 shadow-lg ${
+                alert.type === "info"
+                  ? "border-l-blue-500 bg-blue-50"
+                  : alert.type === "warning"
+                    ? "border-l-amber-500 bg-amber-50"
+                    : "border-l-green-500 bg-green-50"
+              }`}
+            >
+              <div className="flex items-center justify-between">
+                <AlertDescription
+                  className={`${
+                    alert.type === "info"
+                      ? "text-blue-800"
+                      : alert.type === "warning"
+                        ? "text-amber-800"
+                        : "text-green-800"
+                  }`}
+                >
+                  {alert.message}
+                </AlertDescription>
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  onClick={() => setAlert(null)}
+                  className="h-6 w-6 p-0 hover:bg-transparent"
+                >
+                  <X className="h-4 w-4" />
+                </Button>
+              </div>
+            </Alert>
+          </div>
+        )}
+
         <div className="grid grid-cols-1 lg:grid-cols-10 gap-4">
           {/* Visualization Area */}
           <div className="lg:col-span-7 space-y-3">
-            {/* In-page Alert */}
-            {alert && (
-              <Alert
-                className={`border-l-4 ${
-                  alert.type === "info"
-                    ? "border-l-blue-500 bg-blue-50"
-                    : alert.type === "warning"
-                      ? "border-l-amber-500 bg-amber-50"
-                      : "border-l-green-500 bg-green-50"
-                }`}
-              >
-                <div className="flex items-center justify-between">
-                  <AlertDescription
-                    className={`${
-                      alert.type === "info"
-                        ? "text-blue-800"
-                        : alert.type === "warning"
-                          ? "text-amber-800"
-                          : "text-green-800"
-                    }`}
-                  >
-                    {alert.message}
-                  </AlertDescription>
-                  <Button
-                    variant="ghost"
-                    size="sm"
-                    onClick={() => setAlert(null)}
-                    className="h-6 w-6 p-0 hover:bg-transparent"
-                  >
-                    <X className="h-4 w-4" />
-                  </Button>
-                </div>
-              </Alert>
-            )}
-
             <Card className="shadow-lg border-0 bg-white/80 backdrop-blur-sm">
               <CardHeader className="pb-3">
                 <CardTitle className="flex items-center justify-between">
@@ -551,16 +555,21 @@ export default function DFASimulator() {
             </CardHeader>
             <CardContent className="space-y-4">
               <div className="space-y-2">
-                <Label htmlFor="prompt-input">{prompt.message}</Label>
+                <Label htmlFor="prompt-input" className="whitespace-pre-line">
+                  {prompt.message}
+                </Label>
                 <Input
                   id="prompt-input"
                   value={promptInput}
                   onChange={(e) => setPromptInput(e.target.value)}
                   onKeyDown={handlePromptKeyDown}
-                  placeholder="Enter value..."
+                  placeholder={
+                    prompt.title.includes("Test String") ? "Enter string" : "Enter value..."
+                  }
                   autoFocus
                   className="w-full"
                 />
+                {prompt.title.includes("Test String")}
               </div>
               <div className="flex gap-2 justify-end">
                 <Button variant="outline" onClick={handlePromptCancel}>
@@ -637,7 +646,9 @@ export default function DFASimulator() {
               <div className="mb-4">
                 <p className="text-gray-700 mb-2">Test String:</p>
                 <div className="bg-white/70 rounded-lg px-4 py-2 font-mono text-lg border relative group">
-                  {testResult.testString ? (
+                  {testResult.testString.length === 0 ? (
+                    <span className="text-gray-500 italic">ε (empty string)</span>
+                  ) : (
                     <>
                       <span className="break-all">
                         {showFullString || testResult.testString.length <= STRING_DISPLAY_LIMIT
@@ -663,16 +674,18 @@ export default function DFASimulator() {
                         </button>
                       )}
                     </>
-                  ) : (
-                    "(empty string)"
                   )}
                 </div>
               </div>
 
               <p className={`text-sm mb-4 ${testResult.accepted ? "text-green-700" : "text-red-700"}`}>
-                {testResult.accepted
-                  ? "The string was successfully accepted by the automaton."
-                  : "The string was rejected by the automaton."}
+                {testResult.testString.length === 0
+                  ? testResult.accepted
+                    ? "The empty string (ε) was accepted because the start state is accepting."
+                    : "The empty string (ε) was rejected because the start state is not accepting."
+                  : testResult.accepted
+                    ? "The string was successfully accepted by the automaton."
+                    : "The string was rejected by the automaton."}
               </p>
 
               {/* Action buttons */}
@@ -717,7 +730,7 @@ export default function DFASimulator() {
               <div className="mt-2 text-sm text-gray-600">
                 Test String:{" "}
                 <span className="font-mono bg-gray-100 px-2 py-1 rounded">
-                  {sequenceView.data.testString || "(empty)"}
+                  {sequenceView.data.testString.length === 0 ? "ε (empty)" : sequenceView.data.testString}
                 </span>
                 <span
                   className={`ml-4 px-2 py-1 rounded text-white text-xs ${sequenceView.data.accepted ? "bg-green-500" : "bg-red-500"}`}
@@ -733,15 +746,16 @@ export default function DFASimulator() {
                 <div>
                   <h3 className="text-lg font-semibold mb-3 text-gray-800">Input Processing</h3>
                   <div className="flex flex-wrap gap-2 mb-4">
-                    {sequenceView.data.testString.split("").map((char, index) => (
-                      <div key={index} className="bg-blue-100 text-blue-800 px-3 py-1 rounded-lg font-mono text-sm">
-                        <span className="text-xs text-blue-600">#{index + 1}</span> {char}
-                      </div>
-                    ))}
-                    {sequenceView.data.testString === "" && (
+                    {sequenceView.data.testString.length === 0 ? (
                       <div className="bg-gray-100 text-gray-600 px-3 py-1 rounded-lg text-sm italic">
-                        Empty string (ε)
+                        Empty string (ε) - no input characters to process
                       </div>
+                    ) : (
+                      sequenceView.data.testString.split("").map((char, index) => (
+                        <div key={index} className="bg-blue-100 text-blue-800 px-3 py-1 rounded-lg font-mono text-sm">
+                          <span className="text-xs text-blue-600">#{index + 1}</span> {char}
+                        </div>
+                      ))
                     )}
                   </div>
                 </div>
@@ -784,9 +798,9 @@ export default function DFASimulator() {
                             <span className="text-sm font-medium text-gray-700">
                               {index === 0 ? "Start State" : `Step ${index}`}
                             </span>
-                            {index > 0 && (
+                            {index > 0 && sequenceView.data!.testString.length > 0 && (
                               <span className="text-xs bg-gray-200 text-gray-600 px-2 py-1 rounded">
-                                Input: {sequenceView.data!.testString[index - 1] || "ε"}
+                                Input: {sequenceView.data!.testString[index - 1]}
                               </span>
                             )}
                           </div>
@@ -817,11 +831,15 @@ export default function DFASimulator() {
                     Result: {sequenceView.data.accepted ? "String Accepted" : "String Rejected"}
                   </h4>
                   <p className={`text-sm mt-1 ${sequenceView.data.accepted ? "text-green-700" : "text-red-700"}`}>
-                    {sequenceView.data.accepted
-                      ? `The string was fully processed and ended in an accepting state (${sequenceView.data.path[sequenceView.data.path.length - 1].label || sequenceView.data.path[sequenceView.data.path.length - 1].id}).`
-                      : sequenceView.data.path.length - 1 === sequenceView.data.testString.length
-                        ? `The string was fully processed but ended in a non-accepting state (${sequenceView.data.path[sequenceView.data.path.length - 1].label || sequenceView.data.path[sequenceView.data.path.length - 1].id}).`
-                        : `The string processing stopped early at step ${sequenceView.data.path.length - 1} due to no valid transition.`}
+                    {sequenceView.data.testString.length === 0
+                      ? sequenceView.data.accepted
+                        ? "The empty string (ε) was accepted because the start state is an accepting state."
+                        : "The empty string (ε) was rejected because the start state is not an accepting state."
+                      : sequenceView.data.accepted
+                        ? `The string was fully processed and ended in an accepting state (${sequenceView.data.path[sequenceView.data.path.length - 1].label || sequenceView.data.path[sequenceView.data.path.length - 1].id}).`
+                        : sequenceView.data.path.length - 1 === sequenceView.data.testString.length
+                          ? `The string was fully processed but ended in a non-accepting state (${sequenceView.data.path[sequenceView.data.path.length - 1].label || sequenceView.data.path[sequenceView.data.path.length - 1].id}).`
+                          : `The string processing stopped early at step ${sequenceView.data.path.length - 1} due to no valid transition.`}
                   </p>
                 </div>
               </div>
