@@ -528,7 +528,7 @@ export default function DFASimulator() {
                 </ul>
               </div>
               <div className="space-y-2">
-                <h4 className="font-semibold text-emerald-700">Testing & Shortcuts</h4>
+                <h4 className="font-semibold text-emerald-700">Testing Your DFA</h4>
                 <ul className="space-y-1 text-gray-600">
                   <li>
                     • <strong>Test Strings:</strong> Click "Run Test" and enter a string to test
@@ -537,7 +537,7 @@ export default function DFASimulator() {
                     • <strong>Visual Feedback:</strong> Watch states light up during string processing
                   </li>
                   <li>
-                    • <strong>Edit Alphabet:</strong> Click input symbols to rename or delete them
+                    • <strong>View Sequence:</strong> Click "View Sequence" to understand how the DFA processed the string
                   </li>
                 </ul>
               </div>
