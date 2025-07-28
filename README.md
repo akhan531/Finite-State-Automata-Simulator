@@ -14,17 +14,14 @@ This simulator provides a complete DFA development environment that allows users
 
 ## Demo
 
-https://github.com/akhan531/Finite-State-Automata-Simulator/blob/main/demos/modelDFA.png
+![Model DFA](https://github.com/akhan531/Finite-State-Automata-Simulator/blob/main/demos/modelDFA.png?raw=true)  
+*This DFA accepts only binary numbers that are multiples of 3. We will recreate this DFA using our simulator.*
 
-This DFA accepts only binary numbers that are multiples of 3. We will recreate this DFA using our simulator.
+![Building the DFA](https://github.com/akhan531/Finite-State-Automata-Simulator/blob/main/demos/buildingDFA.gif?raw=true)  
+*Creating the DFA.*
 
-https://github.com/akhan531/Finite-State-Automata-Simulator/blob/main/demos/buildingDFA.mov
-
-Creating the DFA.
-
-https://github.com/akhan531/Finite-State-Automata-Simulator/blob/main/demos/testingDFA.mov
-
-Tested the DFA with 101001010011011001101<sub>2</sub>, or 1353421<sub>10</sub>, which is not divisible by 3.     
+![Testing the DFA](https://github.com/akhan531/Finite-State-Automata-Simulator/blob/main/demos/testingDFA.gif?raw=true)  
+*Tested the DFA with `1010010100110110011012` (1353421<sub>10</sub>), which is not divisible by 3.*   
 
 ## Key Features
 
